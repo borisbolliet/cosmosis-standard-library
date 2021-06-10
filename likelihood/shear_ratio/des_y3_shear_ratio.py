@@ -11,6 +11,21 @@ def get_ratio_from_gammat(gammat1, gammat2, inv_cov):
     ratio = s2 * (gammat1 / gammat2) @ inv_cov @ ones
     return float(ratio)
 
+def get_array_default(options, key, default):
+    # The datablock doesn't allow default values for
+    # arrays right now
+    if options.has_value(key):
+        return options.get_double_array_1d(key)
+    else:
+        return default
+
+
+# These cuts correspond to 6 Mpc/h, which are the cuts applied
+# in the default shear ratio data file release
+default_theta_low_s14 = np.array([9., 6., 4.5, 2.5, 2.5])
+default_theta_low_s24 = np.array([9., 6., 4.5, 2.5, 2.5])
+default_theta_low_s34 = np.array([2.5, 2.5, 4.5, 2.5, 2.5])
+default_theta_high = np.array([6.83313651, 17.63634989, 13.61215672, 11.32891161, 10.01217238]) 
 
 
 class ShearRatioLikelihood(GaussianLikelihood):
@@ -19,15 +34,14 @@ class ShearRatioLikelihood(GaussianLikelihood):
 
     def __init__(self, options):
         super().__init__(options)
-        th_limit_low_s14 = options.get_double_array_1d("th_limit_low_s14")
-        th_limit_low_s24 = options.get_double_array_1d("th_limit_low_s24")
-        th_limit_low_s34 = options.get_double_array_1d("th_limit_low_s34")
+
+        th_limit_low_s14 = get_array_default(options, "th_limit_low_s14", default_theta_low_s14)
+        th_limit_low_s24 = get_array_default(options, "th_limit_low_s24", default_theta_low_s24)
+        th_limit_low_s34 = get_array_default(options, "th_limit_low_s34", default_theta_low_s34)
 
         self.theta_low = [th_limit_low_s14, th_limit_low_s24, th_limit_low_s34]
-        self.theta_high = options.get_double_array_1d("th_limit_high")
-        self.nbin_lens = options.get_int("lens_bins")
-
-        print("logdetC = ", self.log_det_constant)
+        self.theta_high = get_array_default(options, "th_limit_high", default_theta_high)
+        self.nbin_lens = options.get_int("lens_bins", default=3)
 
     def build_data(self):
         filename = self.options["data_file"]

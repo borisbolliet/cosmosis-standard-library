@@ -1,0 +1,55 @@
+name: "shear_ratio"
+version: "1.0"
+purpose: "The DES-Y3 shear ratio likelihood"
+url: ""
+interface: des_y3_shear_ratio.py
+attribution: [Carles Sanchez, Judit Prat]
+rules: "None"
+cite:
+    - "https://arxiv.org/abs/2105.13542"
+
+assumptions:
+    - "DES Y3 shear ratio measurements"
+    - "Gaussian likelihood on these measurements"
+    - "Minimal sensitivity to non-linearities"
+
+explanation: |
+    "
+    Small-scale gamma(t) measurements (less than ~ 10-20 arcmin) cannot currently
+    be accurately predicted from theory because they, like other small-scale
+    measurements, are too strongly affected by baryonic effects on the power spectrum,
+    non-linear galaxy bias, and other systematics.
+
+    We should, however, see consistent gamma(t) between different tomographic
+    bins of source galaxies behind a different redshift bin - the ratio of these
+    functions are primarily determined by the geometry of the system.
+
+    This ratio is highly sensitive to errors in the photometric redshift errors
+    in the source samples; this likelihood is most useful for constraining
+    parametrization of these values.
+    "
+
+# List of parameters that can go in the params.ini file in the section for this module    
+params:
+    data_file: "str, path to pickle data file"
+    th_limit_low_s14: "real array, lower theta limits for this pair (must match file)"
+    th_limit_low_s24: "real array, lower theta limits for this pair (must match file)"
+    th_limit_low_s34: "real array, lower theta limits for this pair (must match file)"
+    th_limit_high: "real array, upper theta limits (must patch file)"
+    lens_bins: "int, default=3, number of lens bins (must match file)"
+    y_section: "str, default=galaxy_shear_xi, GGL datablock section"
+    like_name: "str, default=shear_ratio, name of output likelihood"
+
+#Inputs for a given choice of a parameter, from the values.ini or from other modules
+#If no such choices, just do one of these omitting mode=something part:
+inputs:
+    galaxy_shear_xi:
+        theta:  "real 1d array, theta values of computed corr funcs, in radians"
+        bin_i_j: "real 1d arrays, measured GGL values at these angles"
+        bin_avg: "bool, whether these functions are bin-averaged"
+        nbin_b: "int, number of source bins"
+
+outputs:
+    likelihoods:
+        shear_ratio_like: "Gaussian likelihood value of supplied functions"
+
