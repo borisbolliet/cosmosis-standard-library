@@ -75,6 +75,7 @@ def get_class_inputs(block, config):
     # names and form that class expects
     nnu = block.get_double(cosmo, 'nnu', 3.046)
     nmassive = block.get_int(cosmo, 'num_massive_neutrinos', default=0)
+
     # print(nmassive)
     # print(block.get_double(cosmo, 'mnu', default=0.06))
     # exit(0)
@@ -89,9 +90,16 @@ def get_class_inputs(block, config):
         'omega_cdm': block[cosmo, 'omch2'],
         'tau_reio':  block[cosmo, 'tau'],
         'T_cmb':     block.get_double(cosmo, 'TCMB', default=2.726),
-        'N_ur':      nnu - nmassive,
-        'N_ncdm':    nmassive,
-        'm_ncdm':    block.get_double(cosmo, 'mnu', default=0.06)
+        # 'N_ur':      nnu - nmassive,
+        # 'N_ncdm':    nmassive,
+        # 'm_ncdm':    block.get_double(cosmo, 'mnu', default=0.06)
+
+     # CLASS SETTINGS FOR COSMOPOWER
+      'N_ncdm': 1,
+      'N_ur': 2.0328,
+      'm_ncdm': 0.06
+
+
     }
 
     if config["cmb"] or config["lensing"]:
@@ -159,7 +167,9 @@ def get_class_outputs(block, c, config):
             for i, ki in enumerate(k):
                 for j, zi in enumerate(z):
                     P[i, j] = c.pk_lin(ki, zi)
-            block.put_grid("matter_power_lin", "k_h", k / h0, "z", z, "p_k", P * h0**3)
+            print(np.shape(P * h0**3))
+            # exit(0)
+            block.put_grid("matter_power_lin", "k_h", k / h0, "z", z, "P_k", P * h0**3)
 
         # CDM+baryons power spectrum
         if config['save_cdm_baryon_power_lin']:
@@ -167,7 +177,7 @@ def get_class_outputs(block, c, config):
             for i, ki in enumerate(k):
                 for j, zi in enumerate(z):
                     P[i, j] = c.pk_cb_lin(ki, zi)
-            block.put_grid('cdm_baryon_power_lin', 'k_h', k/h0, 'z', z, 'p_k', P*h0**3)
+            block.put_grid('cdm_baryon_power_lin', 'k_h', k/h0, 'z', z, 'P_k', P*h0**3)
 
         # Get growth rates and sigma_8
         D = [c.scale_independent_growth_factor(zi) for zi in z]
@@ -186,7 +196,7 @@ def get_class_outputs(block, c, config):
                 for j, zi in enumerate(z):
                     P[i, j] = c.pk(ki, zi)
 
-            block.put_grid("matter_power_nl", "k_h", k / h0, "z", z, "p_k", P * h0**3)
+            block.put_grid("matter_power_nl", "k_h", k / h0, "z", z, "P_k", P * h0**3)
 
 
     ##
@@ -196,11 +206,13 @@ def get_class_outputs(block, c, config):
     # save redshifts of samples
     block[distances, 'z'] = z
     block[distances, 'nz'] = nz
-
+    block[distances, 'a'] = 1/(1+z)
     # Save distance samples
-    block[distances, 'd_l'] = np.array([c.luminosity_distance(zi) for zi in z])
+
     d_a = np.array([c.angular_distance(zi) for zi in z])
     block[distances, 'd_a'] = d_a
+    # block[distances, 'd_l'] = np.array([c.luminosity_distance(zi) for zi in z])
+    block[distances, 'd_l'] = d_a * (1 + z)**2
     block[distances, 'd_m'] = d_a * (1 + z)
 
     # Save some auxiliary related parameters

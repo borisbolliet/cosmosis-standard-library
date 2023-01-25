@@ -16,7 +16,7 @@ Contact Jonathan Blazek with questions.
 
 from cosmosis.datablock import names, option_section
 import fastpt.FASTPT as FASTPT
-from fastpt.P_extend import k_extend 
+from fastpt.P_extend import k_extend
 import numpy as np
 from time import time
 
@@ -47,12 +47,12 @@ def setup(options):
     else:
         P_window = None
 
-    #####################    
+    #####################
     do_fastpt=False
     fpt_config = {
         'do_dd_spt':do_dd_spt,
         'do_ia':do_ia,
-        'do_bias':do_bias, 
+        'do_bias':do_bias,
         'do_rsd':do_rsd,
         'do_ia_tt':do_ia_tt,
         'do_ia_ta':do_ia_ta,
@@ -65,7 +65,7 @@ def setup(options):
         print('You have asked for quantities from FAST-PT. FAST-PT will be run.')
     else:
         print('WARNING: You have NOT asked for quantities from FAST-PT. FAST-PT will NOT be run.')
-        
+
     config = {
         'do_fastpt':do_fastpt,
         'bias_section':bias_section,
@@ -113,17 +113,21 @@ def execute(block, config):
     else:
         need_reinit = True
         if verbose: print("FAST-PT has not yet been initialized - this will be done now.")
-    
+
     k0log=np.log(k0)
     knl1log=np.log(knl1)
     Pkz = block[lin, "P_k"]
     Pkznl = block[nl, "P_k"]
-    P0 = Pkz[0,:]
+    # P0 = Pkz[0,:]  # camb
+    P0 = Pkz[:,0] # class
+    # print(len(k0log),np.shape(P0))
+    # exit(0)
     ind=np.where(k0>0.03)[0][0]
     #note minor scale-dependence in growth factor.
     ##use z values from linear CAMB
     z = block[lin, "z"]
-    Growth2 = Pkz[:,ind]/Pkz[0,ind]
+    # Growth2 = Pkz[:,ind]/Pkz[0,ind] # camb
+    Growth2 = Pkz[ind,:]/Pkz[ind,0] # class
 
     ##use z values from halofit (typically the same as lin)
     znl = block[nl, "z"]
@@ -138,7 +142,7 @@ def execute(block, config):
     nk=int(config['k_res_fac']*len(k0)) # higher res increases runtime, decreases potential ringing at low-k
     if (nk % 2) != 0:
         nk +=1 # make sure nk is even
-    #kmin=np.log10(k0[0]); kmax=np.log10(k0[-1])    
+    #kmin=np.log10(k0[0]); kmax=np.log10(k0[-1])
     eps=0.    ## This interpolation should be at the input bounds. Extrapolate used to avoid failure due to numerical noise. No actual extrapolation is done. We could handle this using a margin set by eps, or by interpolation which allows for extrapolation.
     kmin=np.log10((1.+eps)*k0[0]); kmax=np.log10((1.-eps)*k0[-1])
     k1=np.logspace(kmin,kmax,nk)
@@ -182,11 +186,11 @@ def execute(block, config):
 #    #note: machine precision can cause issues with interpolation at the boundaries
 #    k=np.logspace(kmin,kmax,nk)
 #    P=np.exp(pinterp(klog))
-    
+
     k=k1
     klog=np.log(k) #this is used for log interpolation later, so uses natural log.
     P=P1
-    
+
     t4=time()
     if verbose: print('Preparing arrays for FAST-PT took',t4-t3)
 
@@ -197,7 +201,7 @@ def execute(block, config):
 #    nk=5*len(k1)
 #    k=np.logspace(kmin,kmax,nk)
 #    P=pinterp(k)
-    
+
 
     #Growth2 = Pkz[:,0]/Pkz[0,0]
     #Note that the full Boltzmann solution from CAMB includes a small
@@ -210,7 +214,7 @@ def execute(block, config):
         #specify which FAST-PT calculations to initialize
         to_do=[]
         if config['do_bias']:
-            to_do.append('dd_bias') 
+            to_do.append('dd_bias')
         if config['do_dd_spt']:
             to_do.append('one_loop_dd')
         if config['do_ia']:
@@ -224,10 +228,10 @@ def execute(block, config):
         if config['do_rsd']:
     	    to_do.append('RSD')
         if verbose: print('intializing FAST-PT on a new k grid with the following to_do list:',to_do)
-        # bias parameter and padding length 
+        # bias parameter and padding length
         #nu=-2 #shouldn't be required in v2
         n_pad=int(config['n_pad_fac']*len(k))
-        config['fastpt_kinit'] = FASTPT(k,to_do=to_do,low_extrap=config['low_extrap'],high_extrap=config['high_extrap'],n_pad=n_pad) 
+        config['fastpt_kinit'] = FASTPT(k,to_do=to_do,low_extrap=config['low_extrap'],high_extrap=config['high_extrap'],n_pad=n_pad)
         config['k0'] = k0
         config['knl1'] = knl1
         t6=time()
@@ -254,7 +258,7 @@ def execute(block, config):
         Ps2s2 = np.outer(Growth2**2,bias_fpt[6])
         sig4kz = np.outer(Growth2**2,bias_fpt[7]*np.ones_like(bias_fpt[0]))
         P1Lkz= Pkz2 + one_loopkz
-        
+
         ####
         output_nl_grid=config['output_nl_grid']
         if output_nl_grid:
@@ -280,7 +284,7 @@ def execute(block, config):
             temp=intspline(klog,np.log(bias_fpt[6]))
             Ps2s2_o = np.outer(Growth2**2,np.exp(temp(knl1log)))
             sig4kz_o = np.outer(Growth2**2,bias_fpt[7]*np.ones_like(knl1))
-        
+
         ####
         #Power law in z bias model (constant in z if b<i>_alpha not set in values file)
         bias_section=config['bias_section']
@@ -295,12 +299,12 @@ def execute(block, config):
         z0_1 = block.get_double(bias_section, "b1_z0", 0.)
         z0_2 = block.get_double(bias_section, "b2_z0", 0.)
         z0_s = block.get_double(bias_section, "bs_z0", 0.)
-        
+
         K,Z = np.meshgrid(k,z) #why have a k-dimension for the bias?
         b1 = b1_z0*((1+Z)/(1+z0_1))**b1_alpha#np.ones_like(Z) seems unnecessary
         b2 = b2_z0*((1+Z)/(1+z0_2))**b2_alpha
         bs = bs_z0*((1+Z)/(1+z0_s))**bs_alpha
-        
+
 
         ###
         # BIAS CONVENTION. See, e.g. https://arxiv.org/pdf/1405.1447v4.pdf
@@ -316,13 +320,13 @@ def execute(block, config):
         # galaxy power spectrum (for bin AUTO correlations)
         Pggsub = (b1**2*Pkz2 + b1*b2*Pd1d2 + (1./4)*b2*b2*(Pd2d2-2.*sig4kz) + b1*bs*Pd1s2 +
             (1./2)*b2*bs*(Pd2s2-4./3*sig4kz) + (1./4)*bs*bs*(Ps2s2-8./9*sig4kz))
-        
+
         Pgg = (b1**2*Pkz2 + b1*b2*Pd1d2 + (1./4)*b2*b2*(Pd2d2) + b1*bs*Pd1s2 +
             (1./2)*b2*bs*(Pd2s2) + (1./4)*bs*bs*(Ps2s2))
 
         # galaxy-matter cross power spectrum
         Pmg = b1*Pkz2 + (1./2)*b2*Pd1d2 + (1./2)*bs*Pd1s2
-        
+
         # note that the fastpt block uses Plin for the linear
         #  bias terms in P_mg and P_gg
         # uses a log k grid with the lin k bounds.
@@ -339,7 +343,7 @@ def execute(block, config):
         block.put_grid('fastpt',"z",z,"k_h",k,'one_loopkz',one_loopkz)
         block.put_grid('fastpt',"z",z,"k_h",k,'P1Lkz',P1Lkz)
         block.put_grid('fastpt',"z",z,"k_h",k,'Pkz2',Pkz2)
-        
+
         # put galaxy-galaxy and galaxy-matter power spectra into the appropriate bits of the data block
         # First, must interpolate back to original k values (choose lin or nl)
         if not config['only_terms']:
@@ -374,7 +378,7 @@ def execute(block, config):
             block.put_grid('fastpt',"z",z,"k_h_nl",knl1,'sig4kz_o',sig4kz_o)
 
         t8=time()
-        if verbose: print('FAST-PT nonlinear bias steps took',t8-t7)    
+        if verbose: print('FAST-PT nonlinear bias steps took',t8-t7)
 
 
     if config['do_ia']:
