@@ -4,6 +4,7 @@ import numpy as np
 from cosmosis.datablock import names, option_section, BlockError
 import re
 import sys
+import scipy
 import scipy.interpolate as interp
 from projection_tools import exact_integral, limber_integral, get_dlogchi, \
                              TomoNzKernel, get_Pk_basis_funcs, get_bias_params_bin, \
@@ -91,6 +92,12 @@ class Power3D(object):
         z, k, pk = block.get_grid( self.section_name, "z", "k_h", "p_k" )
         self.z_vals = z
         self.chi_vals = chi_of_z(z)
+
+        # print('\n')
+        # print('chi_vals:',self.chi_vals)
+        # print('z_vals:',self.z_vals)
+        # print('\n')
+
         self.k_vals = k
         self.logk_vals = np.log(k)
         self.pk_vals = pk
@@ -1440,9 +1447,28 @@ class SpectrumCalculator(object):
             self.chi_star = None
 
         self.chi_max = chi_distance.max()
+        # try:
+        # print('\n')
+        # print('chi:',chi_distance)
+        # print('a:',a_distance)
+        # print('\n')
+        # test_arr = chi_distance
+        # test_arr_p = test_arr[1:]
+        # test_arr_m = test_arr[:-1]
+        # test_arr_sorted = np.delete(test_arr, np.where((test_arr_p-test_arr_m)<0))
+        # chi_distance = test_arr_sorted
+        # test_arr_sorted = np.delete(a_distance, np.where((test_arr_p-test_arr_m)<0))
+        # a_distance = test_arr_sorted
+        # test_arr_sorted = np.delete(z_distance, np.where((test_arr_p-test_arr_m)<0))
+        # z_distance = test_arr_sorted
+
         self.a_of_chi = interp.InterpolatedUnivariateSpline(chi_distance, a_distance)
+
+        # exit(0)
         self.chi_of_z = interp.InterpolatedUnivariateSpline(z_distance, chi_distance)
+
         self.dchidz = self.chi_of_z.derivative()
+
         self.chi_distance = chi_distance
 
     def load_kernels(self, block):

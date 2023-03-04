@@ -266,19 +266,21 @@ def get_class_outputs(block, config):
     ##
 
     # Ranges of the redshift and matter power
-    nk = 5000
-    ndspl = 10
+    nk = 5000 # do not touch this (it belongs to the emulators architecture)
+    ndspl = 10 # do not touch this (it belongs to the emulators architecture)
+    ndspl_fastpt = 5
     # Define k,z we want to sample
-    zmax = 4.
-    nz = 50
+    zmax = 2.
+    nz = 50 # anything between 15 and 500... this is determining for time.
     z = np.linspace(0.,zmax,nz)
-    k = np.geomspace(1e-4,50.,nk)[::ndspl]
-    ls = np.arange(2,5000+2)[::ndspl]
-    dls = ls*(ls+1.)/2./np.pi
+    k = np.geomspace(1e-4,50.,nk)[::ndspl] # (k-range of emulators is 1e-4, 50)
+    ls = np.arange(2,5000+2)[::ndspl] # (sorry, dont care about this, but leave it there; scaling to p(k))
+    dls = ls*(ls+1.)/2./np.pi # (sorry, dont care about this, but leave it there; scaling to p(k))
     nz = len(z)
     nk = len(k)
 
 
+    # setting up the paramter dictionnary that we feed to the emulator
     params = get_class_inputs(block, config)
     params_dict = {# LambdaCDM parameters
                    # last column of Table 1 of https://arxiv.org/pdf/1807.06209.pdf:
@@ -290,12 +292,13 @@ def get_class_outputs(block, config):
                    'n_s': [params['n_s']],
                    }
 
+    # cosmopower call, the derived parameter emulator, e.g. rs_drag and other things
     der_params = config['der_emu']['lcdm'].ten_to_predictions_np(params_dict.copy())
 
     # for emulators of distances and growth:
-    nz_arr = 5000 # number of z-points in redshift data
-    z_arr_max = 20. # max redshift of redshift data
-    z_arr = np.linspace(0.,z_arr_max,nz_arr)
+    nz_arr = 5000 # number of z-points in redshift data (dont touch this)
+    z_arr_max = 20. # max redshift of redshift data (dont touch this)
+    z_arr = np.linspace(0.,z_arr_max,nz_arr)#  (dont touch this)
 
     # Extract (interpolate) P(k,z) at the requested
     # sample points.
@@ -303,6 +306,7 @@ def get_class_outputs(block, config):
     if 'mPk' in 'mPk':    # for now always do:
         params_dict_pp = params_dict.copy()
             # params_cp[key] = [value]
+        # get sigma8(z), useful to fsigma8 computation, and also f, the growth rate. 
         predicted_s8z = config['s8_emu']['lcdm'].predictions_np(params_dict_pp)
         s8z_interp = scipy.interpolate.interp1d(
                                         z_arr,
@@ -313,21 +317,22 @@ def get_class_outputs(block, config):
                                         bounds_error=False,
                                         fill_value=np.nan,
                                         assume_sorted=False)
+        # get sigma8 at z=0:
         block[cosmo, 'sigma_8'] = der_params[0][1]
 
         # Total matter power spectrum (saved as grid)
         if config['save_matter_power_lin']:
-            P = np.zeros((k.size, z.size))
+            P = np.zeros((k[::ndspl_fastpt].size, z.size))
             for j, zi in enumerate(z):
                 params_dict_pp = params_dict.copy()
                 params_dict_pp.pop('tau_reio')
                 params_dict_pp['z_pk_save_nonclass'] = [zi]
                 respk = config['pkl_emu']['lcdm'].predictions_np(params_dict_pp)[0]
                 respk = ((dls)**-1*10.**np.asarray(respk))
-                P[:,j] = respk
+                P[:,j] = respk[::ndspl_fastpt]
             # print(np.shape(P * h0**3))
             # exit(0)
-            block.put_grid("matter_power_lin", "k_h", k / h0, "z", z, "P_k", P * h0**3)
+            block.put_grid("matter_power_lin", "k_h", k[::ndspl_fastpt] / h0, "z", z, "P_k", P * h0**3)
             # block.put_grid("matter_power_lin", "k_h", k , "z", z, "P_k", P * h0**0)
 
         # CDM+baryons power spectrum
@@ -407,16 +412,16 @@ def get_class_outputs(block, config):
 
         # if c.nonlinear_method != 0:
         if 1 != 0: # for now always do:
-            P = np.zeros((k.size, z.size))
+            P = np.zeros((k[::ndspl_fastpt].size, z.size))
             for j, zi in enumerate(z):
                 params_dict_pp = params_dict.copy()
                 params_dict_pp.pop('tau_reio')
                 params_dict_pp['z_pk_save_nonclass'] = [zi]
                 respk = config['pknl_emu']['lcdm'].predictions_np(params_dict_pp)[0]
                 respk = ((dls)**-1*10.**np.asarray(respk))
-                P[:,j] = respk
+                P[:,j] = respk[::ndspl_fastpt]
 
-            block.put_grid("matter_power_nl", "k_h", k / h0, "z", z, "P_k", P * h0**3)
+            block.put_grid("matter_power_nl", "k_h", k[::ndspl_fastpt] / h0, "z", z, "P_k", P * h0**3)
 
 
     ##
@@ -424,6 +429,8 @@ def get_class_outputs(block, config):
     ##
 
     # save redshifts of samples
+    nz = 250 # anything between 15 and 500... this is determining for time.
+    z = np.linspace(0.,2.,nz)
     block[distances, 'z'] = z
     block[distances, 'nz'] = nz
     block[distances, 'a'] = 1/(1+z)
@@ -439,7 +446,7 @@ def get_class_outputs(block, config):
                                     axis=-1,
                                     copy=True,
                                     bounds_error=False,
-                                    fill_value=np.nan,
+                                    fill_value='extrapolate',
                                     assume_sorted=False)
 
 
